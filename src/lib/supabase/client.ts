@@ -69,6 +69,21 @@ export function describeSupabaseUrl(info: SupabaseUrlInfo): string | null {
 }
 
 /**
+ * A CORS-free probe. If this resolves the host answered at the TCP level, which
+ * separates "the network cannot reach Supabase" from "the browser refused the
+ * request" (extension, proxy, CORS). `no-cors` yields an opaque response, so we
+ * only use it as a reachability signal — never to read data.
+ */
+async function isHostReachable(base: string): Promise<boolean> {
+  try {
+    await fetch(`${base}/auth/v1/health`, { mode: "no-cors", cache: "no-store" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Pings Supabase's public auth health endpoint so the settings page can show a
  * concrete answer (HTTP status / unreachable host) instead of a guess.
  */
@@ -79,6 +94,7 @@ export async function pingSupabase(): Promise<{ ok: boolean; detail: string }> {
 
   const base = (info.url as string).replace(/\/+$/, "");
   const key = getSupabaseConfig()?.key ?? "";
+
   try {
     const response = await fetch(`${base}/auth/v1/health`, { headers: { apikey: key } });
     if (response.ok) return { ok: true, detail: `تم الاتصال بـ ${info.host} بنجاح (HTTP ${response.status}).` };
@@ -88,11 +104,18 @@ export async function pingSupabase(): Promise<{ ok: boolean; detail: string }> {
         detail: `${info.host} ردّ بـ HTTP ${response.status}. غالبًا مشروع Supabase موقوف (Paused) — افتح لوحة Supabase واضغط Restore.`,
       };
     }
-    return { ok: false, detail: `${info.host} ردّ بـ HTTP ${response.status}. تحقّق أن المشروع نشِط وأن الرابط صحيح.` };
-  } catch {
     return {
       ok: false,
-      detail: `تعذّر الوصول إلى ${info.host}. الرابط غير صحيح أو المشروع محذوف/موقوف، أو الشبكة تحجب الاتصال.`,
+      detail: `${info.host} يستجيب (HTTP ${response.status}) لكنه رفض الطلب. راجع قيمة NEXT_PUBLIC_SUPABASE_ANON_KEY.`,
+    };
+  } catch (err) {
+    const raw = err instanceof Error ? `${err.name}: ${err.message}` : String(err);
+    const reachable = await isHostReachable(base);
+    return {
+      ok: false,
+      detail: reachable
+        ? `${info.host} يستجيب، لكن هذا المتصفّح منع الطلب (إضافة حجب أو بروكسي). تفصيل الخطأ: ${raw}`
+        : `${info.host} لا يستجيب إطلاقًا من هذا المتصفّح — الشبكة أو DNS أو حاجب إعلانات يمنع *.supabase.co. تفصيل الخطأ: ${raw}`,
     };
   }
 }

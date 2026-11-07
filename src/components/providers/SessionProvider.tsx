@@ -108,9 +108,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (urlProblem) {
           setError(urlProblem);
         } else if (networkFailure) {
+          // The URL already passed the checks above, so the host is well-formed:
+          // the request died inside *this* browser. Report that instead of
+          // blaming the Supabase project, which is usually alive.
           setError(
             urlInfo.host
-              ? `تعذّر الوصول إلى ${urlInfo.host}. تأكّد أن مشروع Supabase غير موقوف (Paused) وأن الرابط صحيح، ثم أعد المحاولة.`
+              ? `تعذّر الوصول إلى ${urlInfo.host} من هذا المتصفّح. افتح الرابط نفسه مباشرة في تبويب جديد — إن لم يُفتح فالمشكلة في الشبكة أو إضافة الحجب، لا في المشروع.`
               : "تعذّر الاتصال بالخادم، تحقّق من الإنترنت.",
           );
         } else if (/anonymous/i.test(raw)) {

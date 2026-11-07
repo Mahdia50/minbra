@@ -55,7 +55,8 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGci...`}
  * connection test lives right here, next to the failure it explains.
  */
 function SessionError({ error, onRetry }: { error: string | null; onRetry: () => void }) {
-  const host = inspectSupabaseUrl().host;
+  const urlInfo = inspectSupabaseUrl();
+  const healthUrl = urlInfo.url ? `${urlInfo.url.replace(/\/+$/, "")}/auth/v1/health` : null;
   const [ping, setPing] = useState<null | { ok: boolean; detail: string }>(null);
   const [pinging, setPinging] = useState(false);
 
@@ -72,7 +73,7 @@ function SessionError({ error, onRetry }: { error: string | null; onRetry: () =>
         <p className="mt-2 text-xs text-muted">
           الرابط المستخدم:{" "}
           <span className="font-mono" dir="ltr">
-            {host ?? "غير معروف"}
+            {urlInfo.host ?? "غير معروف"}
           </span>
         </p>
       </Notice>
@@ -86,6 +87,16 @@ function SessionError({ error, onRetry }: { error: string | null; onRetry: () =>
           <Button variant="ghost">الإعدادات</Button>
         </Link>
       </div>
+
+      {healthUrl && (
+        <p className="mt-3 text-xs text-muted">
+          فحص حاسم:{" "}
+          <a className="underline" href={healthUrl} target="_blank" rel="noreferrer">
+            افتح نقطة فحص Supabase في تبويب جديد
+          </a>{" "}
+          — إن ظهرت JSON فالشبكة سليمة والمشكلة في مكان آخر.
+        </p>
+      )}
 
       {ping && (
         <p className={ping.ok ? "mt-3 text-sm font-semibold text-good" : "mt-3 text-sm font-semibold text-bad"}>
