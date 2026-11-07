@@ -1,26 +1,273 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ==========================================================================
+   «مين برّة السالفة» — Design tokens
+   Dark premium theme, restrained palette, single brand accent.
+   ========================================================================== */
+
+@theme {
+  /* Surfaces */
+  --color-base: #08090d;
+  --color-surface: #101219;
+  --color-elevated: #171a24;
+  --color-hover: #1e2230;
+  --color-line: #262a38;
+  --color-line-soft: #1b1f2b;
+
+  /* Text */
+  --color-ink: #eef0f8;
+  --color-muted: #8b92a8;
+  --color-faint: #5a6076;
+
+  /* Brand + semantics */
+  --color-brand: #7c5cff;
+  --color-brand-soft: #a78bfa;
+  --color-brand-deep: #5b3fd6;
+  --color-accent: #22d3ee;
+  --color-good: #34d399;
+  --color-bad: #fb7185;
+  --color-warn: #fbbf24;
+
+  /* Type */
+  --font-sans: var(--font-cairo), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-kufi), var(--font-cairo), sans-serif;
+
+  /* Motion */
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Radii */
+  --radius-xs: 8px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  html {
+    color-scheme: dark;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: var(--color-base);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    overscroll-behavior-y: none;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--color-brand) 45%, transparent);
+    color: #fff;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-line);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #38405a;
+    background-clip: content-box;
+  }
+
+  input,
+  textarea,
+  button,
+  select {
+    font: inherit;
+    color: inherit;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand-soft);
+    outline-offset: 2px;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@layer utilities {
+  /* Ambient page background: subtle radial glows, no garish gradients. */
+  .app-aurora {
+    background-image:
+      radial-gradient(
+        42rem 30rem at 78% -8%,
+        color-mix(in oklab, var(--color-brand) 22%, transparent),
+        transparent 62%
+      ),
+      radial-gradient(
+        34rem 26rem at 8% 4%,
+        color-mix(in oklab, var(--color-accent) 12%, transparent),
+        transparent 60%
+      );
+  }
+
+  .app-grid {
+    background-image:
+      linear-gradient(to right, rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+    background-size: 46px 46px;
+    mask-image: radial-gradient(70% 60% at 50% 0%, #000 20%, transparent 100%);
+  }
+
+  .panel {
+    background-color: color-mix(in oklab, var(--color-surface) 88%, transparent);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-lg);
+    backdrop-filter: blur(14px);
+  }
+
+  .panel-flat {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-lg);
+  }
+
+  .hairline-top {
+    box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .brand-glow {
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, var(--color-brand) 45%, transparent),
+      0 16px 44px -18px color-mix(in oklab, var(--color-brand) 70%, transparent);
+  }
+
+  .good-glow {
+    box-shadow:
+      0 0 0 1px color-mix(in oklab, var(--color-good) 50%, transparent),
+      0 16px 44px -18px color-mix(in oklab, var(--color-good) 60%, transparent);
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .numeric {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    scrollbar-width: none;
+  }
+
+  /* Shimmer used for loading skeletons */
+  .shimmer {
+    position: relative;
+    overflow: hidden;
+  }
+  .shimmer::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.06),
+      transparent
+    );
+    animation: shimmer 1.6s infinite;
+  }
+
+  @keyframes shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  @keyframes floaty {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-6px);
+    }
+  }
+
+  .animate-floaty {
+    animation: floaty 5s var(--ease-out-soft) infinite;
+  }
+
+  @keyframes ring-pulse {
+    0% {
+      box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-warn) 55%, transparent);
+    }
+    70% {
+      box-shadow: 0 0 0 10px transparent;
+    }
+    100% {
+      box-shadow: 0 0 0 0 transparent;
+    }
+  }
+
+  .animate-ring-pulse {
+    animation: ring-pulse 1.8s infinite;
+  }
 }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Preferences applied by SettingsProvider on <html>
+   --------------------------------------------------------------------------- */
+
+/* «الحركات والانتقالات» = off — same treatment as reduced-motion, and the
+   ambient background layers are dropped entirely. */
+[data-effects="off"] *,
+[data-effects="off"] *::before,
+[data-effects="off"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+
+[data-effects="off"] .app-aurora,
+[data-effects="off"] .app-grid {
+  background-image: none;
+}
+
+/* «عرض مضغوط» = on — every spacing and size in the app is rem-based, so a
+   smaller root font size tightens paddings, gaps and radii in one go. */
+html[data-density="compact"] {
+  font-size: 15px;
+}
+
+[data-density="compact"] .panel,
+[data-density="compact"] .panel-flat {
+  padding: 0.85rem !important;
+}
+

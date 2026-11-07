@@ -1,36 +1,202 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# مين برّة السالفة
 
-## Getting Started
+لعبة جماعية أونلاين (Social Deduction) تُلعب في غرف خاصة أو عامة: معظم اللاعبين يعرفون
+الكلمة السرّية، وواحد أو أكثر يبقى **خارج السالفة** — لا يعرف الكلمة. على البقية أن
+يكتشفوا الخارج، وعلى الخارج أن يخمّن الكلمة قبل أن يُكشف.
 
-First, run the development server:
+مبنية بـ **Next.js 16 (App Router) + TypeScript + Tailwind CSS v4 + Framer Motion**،
+وتعتمد على **Supabase** (Database + Row Level Security + Realtime) — بلا أي خادم
+WebSocket دائم، لذا تعمل مباشرة على **Vercel**.
+
+---
+
+## 1. المزايا
+
+- **غرف خاصة**: رمز من ٦ أحرف، رابط دعوة قابل للنسخ، انضمام بالرمز.
+- **غرف عامة**: قائمة الغرف المتاحة، عدّاد اللاعبين، حالة الغرفة، انضمام عشوائي.
+- **تحكّم المضيف**: عدد اللاعبين (حد أدنى/أقصى)، عدد «خارج السالفة»، مدة كل مرحلة،
+  عدد الجولات، الفئات، نمط الكلمة (عشوائي/محدّد)، لغة الكلمات (عربية فصحى/دارجة)،
+  تفعيل الدردشة، بدء/إيقاف/إعادة.
+- **نظام اللاعبين**: بلا حسابات ولا بريد — اسم + صورة رمزية فقط، حالة الاتصال،
+  مؤشّر المتحدّث الحالي، إعادة الاتصال بعد الانقطاع، نقل صلاحية المضيف عند مغادرته.
+- **نظام الكلمات**: **٥٤ فئة / ٥٤٠٠ كلمة**، بلا تكرار داخل الفئة، بمستويات صعوبة مختلفة.
+- **دورة الجولة**: توزيع سرّي → كشف الدور → مرحلة الإيحاءات → النقاش → التصويت →
+  النتائج → معالجة التعادل → تخمين أخير للخارج → احتساب الفائز. جولات متعدّدة.
+- **إضافات**: دردشة نصّية مباشرة، مؤقّتات لكل مرحلة، نقاط، لوحة صدارة، إحصائيات،
+  مؤثرات صوتية (مُولَّدة بـ WebAudio بلا ملفات)، كتم الصوت، إعادة اللعب بنفس المجموعة،
+  كشف من كان خارج السالفة ومن عرف الكلمة بعد كل جولة.
+
+---
+
+## 2. المتطلّبات
+
+- Node.js 20 أو أحدث
+- حساب [Supabase](https://supabase.com) (الخطة المجانية تكفي)
+- حساب [Vercel](https://vercel.com) للنشر
+
+---
+
+## 3. إعداد Supabase
+
+### 3.1 إنشاء المشروع
+
+1. اذهب إلى <https://supabase.com/dashboard> واضغط **New project**.
+2. اختر اسمًا وكلمة مرور لقاعدة البيانات والمنطقة الأقرب لك، ثم انتظر إنشاء المشروع.
+
+### 3.2 الحصول على المفاتيح
+
+في مشروعك: **Project Settings → API**، وانسخ:
+
+| الحقل في اللوحة | المتغيّر في المشروع |
+| --- | --- |
+| Project URL | `NEXT_PUBLIC_SUPABASE_URL` |
+| `anon` / `publishable` key | `NEXT_PUBLIC_SUPABASE_ANON_KEY` |
+
+> ⚠️ لا تستخدم مفتاح `service_role` في هذا المشروع إطلاقًا. كل ما يبدأ بـ
+> `NEXT_PUBLIC_` يكون مرئيًا في المتصفّح.
+
+### 3.3 تفعيل تسجيل الدخول المجهول (إلزامي)
+
+**Authentication → Sign In / Providers → Anonymous Sign-Ins → Enable**.
+
+اللعبة لا تعرض أي شاشة حساب: تُستخدم الجلسة المجهولة تقنيًا فقط حتى تستطيع
+`Row Level Security` التمييز بين اللاعبين. إذا لم تُفعّل هذا الخيار ستظهر رسالة
+عربية واضحة: «تسجيل الدخول المجهول غير مُفعّل».
+
+### 3.4 تطبيق ملفّات الترحيل
+
+افتح **SQL Editor** في لوحة Supabase، والصق محتوى الملفات **بالترتيب** ثم اضغط Run:
+
+1. `supabase/migrations/0001_schema.sql` — الجداول، الفهارس، سياسات RLS، وتفعيل Realtime.
+2. `supabase/migrations/0002_engine.sql` — منطق اللعبة كاملًا (`security definer` functions).
+3. `supabase/migrations/0003_seed.sql` — بنك الكلمات (٥٤ فئة / ٥٤٠٠ كلمة).
+
+بديل عبر الطرفية (إن رغبت):
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+psql "$SUPABASE_DB_URL" -f supabase/migrations/0001_schema.sql
+psql "$SUPABASE_DB_URL" -f supabase/migrations/0002_engine.sql
+psql "$SUPABASE_DB_URL" -f supabase/migrations/0003_seed.sql
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 4. التشغيل محليًا
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+# 1) تثبيت الحزم
+npm install
 
-## Learn More
+# 2) إعداد متغيّرات البيئة
+cp .env.example .env.local
+# ثم افتح .env.local واملأ الرابط والمفتاح العام من خطوة 3.2
 
-To learn more about Next.js, take a look at the following resources:
+# 3) التشغيل
+npm run dev
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+افتح <http://localhost:3000>. لتجربة اللعبة تحتاج **جهازين أو نافذتين مختلفتين**
+(نافذة عادية + نافذة خاصة/متصفّح آخر) لأن لكل متصفّح هويّة لاعب واحدة.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### أوامر متاحة
 
-## Deploy on Vercel
+| الأمر | الوظيفة |
+| --- | --- |
+| `npm run dev` | خادم التطوير |
+| `npm run build` | بناء الإنتاج |
+| `npm run start` | تشغيل نسخة الإنتاج |
+| `npm run lint` | فحص ESLint |
+| `npx tsc --noEmit` | فحص الأنواع |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### إعادة توليد بنك الكلمات
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+بنك الكلمات مُولَّد آليًا من `scripts/build-seed.mjs`:
+
+```bash
+node scripts/build-seed.mjs   # يكتب supabase/migrations/0003_seed.sql
+```
+
+---
+
+## 5. النشر على Vercel
+
+1. ارفع المستودع إلى GitHub.
+2. في Vercel: **Add New… → Project** ثم اختر المستودع.
+3. أضف متغيّرات البيئة في **Settings → Environment Variables**:
+   - `NEXT_PUBLIC_SUPABASE_URL`
+   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+4. **Deploy**. لا حاجة لأي إعداد إضافي: المشروع لا يحتوي على خادم WebSocket دائم،
+   وكل المنطق الحسّاس يجري داخل دوال Postgres على Supabase.
+5. بعد النشر أضف رابط Vercel إلى **Authentication → URL Configuration → Redirect URLs**
+   إن فعّلت أي تدفّق يتطلّب إعادة توجيه (اللعبة الحالية لا تحتاج ذلك).
+
+---
+
+## 6. بنية المشروع
+
+```
+src/
+  app/
+    page.tsx                 الصفحة الرئيسية
+    create/                  إنشاء غرفة
+    join/                    الانضمام بالرمز
+    rooms/                   الغرف العامة
+    room/[code]/             اللوبي + اللعب + النتائج (RoomClient)
+    stats/                   الإحصائيات ولوحة الصدارة
+    settings/                الإعدادات المحلية + الإعدادات الافتراضية للمباراة
+  components/
+    providers/               الجلسة، الإعدادات، التنبيهات
+    session/                 بوابة الجلسة وإعداد الملف الشخصي
+    ui/                      مجموعة عناصر الواجهة (Button, Modal, …)
+    game/                    مراحل اللعب: كشف الدور، الإيحاءات، النقاش، التصويت، النتائج
+    room/RoomSettingsEditor  محرّر إعدادات الغرفة (مشترك بين عدة صفحات)
+  lib/
+    hooks/                   useRoom, useChat, useCategories, useNow
+    supabase/client.ts       عميل المتصفّح
+    constants.ts             الثوابت والأنواع وإعدادات الغرفة الافتراضية
+    settings.ts, audio.ts, types.ts, utils/
+supabase/migrations/         مخطط قاعدة البيانات + محرّك اللعبة + بنك الكلمات
+scripts/build-seed.mjs       مولّد بنك الكلمات
+```
+
+---
+
+## 7. نموذج الأمان
+
+اللعبة لا تعتمد على ثقة المتصفّح إطلاقًا:
+
+- **الكلمات السرّية والأدوار** محفوظة في `round_secrets` و`player_roles` وهما
+  جدولان **مُفعَّل عليهما RLS بلا أي سياسة**، أي لا يستطيع أي عميل قراءتهما.
+  تُسلَّم فقط عبر دوال `security definer` متحقّقة من العضوية
+  (`api_my_role`, `api_room_state`, `api_round_reveal`).
+- **كل عمليات الكتابة** تمرّ عبر دوال RPC في قاعدة البيانات (لا مسارات API في Next.js)،
+  والعملاء يملكون صلاحية `SELECT` فقط.
+- **لا تصويت مزدوج**: قيد فريد `votes_one_per_player` + تحقّق `votes_no_self`.
+- **لا تغيير للدور من المتصفّح**: الأدوار تُحسب على الخادم عند بدء الجولة.
+- **الفائز يُحسب على الخادم** في `_tally_votes` / `_finish_game`، ولا يُرسل منطق
+  الحساب إلى المتصفّح.
+- **الإيحاء الذي يكشف الكلمة** يُرفض (`CLUE_REVEALS_WORD`) بعد تطبيع النصّ.
+- **تقديم المرحلة** (`api_advance`) يُقبل بالقوة من المضيف فقط، أو من أي عضو إذا كان
+  وقت المرحلة قد انتهى فعلًا.
+
+---
+
+## 8. الجداول
+
+`players` · `player_statistics` · `categories` · `words` · `rooms` · `room_players` ·
+`games` · `game_players` · `game_rounds` · `round_secrets` · `player_roles` · `clues` ·
+`votes` · `chat_messages`
+
+كلها بمفاتيح UUID، مع الفهارس والقيود والعلاقات اللازمة، والجداول الثمانية الحيّة
+مُضافة إلى منشور `supabase_realtime` مع `replica identity full`.
+
+---
+
+## 9. استكشاف الأخطاء
+
+| الرسالة | الحل |
+| --- | --- |
+| «تسجيل الدخول المجهول غير مُفعّل» | فعّل Anonymous Sign-Ins (القسم 3.3) |
+| «لم يتم ربط Supabase بعد» | تأكّد من `.env.local` وأعد تشغيل خادم التطوير |
+| «تعذّر الدخول إلى الغرفة» | تحقّق من الرمز أو أن الغرفة ما زالت مفتوحة |
+| الغرف لا تتحدّث تلقائيًا | تأكّد أن جداول Realtime مُضافة إلى المنشور (ينفّذه `0001_schema.sql`) |
