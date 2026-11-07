@@ -12,6 +12,7 @@ import { PageShell, TopBar, Notice } from "@/components/ui/Layout";
 import { Button } from "@/components/ui/Button";
 import { Toggle } from "@/components/ui/Controls";
 import { Modal } from "@/components/ui/Modal";
+import { inspectSupabaseUrl, pingSupabase } from "@/lib/supabase/client";
 import type { RoomSettings } from "@/lib/constants";
 
 export default function SettingsPage() {
@@ -32,6 +33,16 @@ function Settings() {
   const { push } = useToast();
   const [confirmReset, setConfirmReset] = useState(false);
   const [editingProfile, setEditingProfile] = useState(false);
+  const [ping, setPing] = useState<null | { ok: boolean; detail: string }>(null);
+  const [pinging, setPinging] = useState(false);
+
+  const urlInfo = inspectSupabaseUrl();
+
+  async function testConnection() {
+    setPinging(true);
+    setPing(await pingSupabase());
+    setPinging(false);
+  }
 
   return (
     <div className="space-y-6">
@@ -122,6 +133,12 @@ function Settings() {
               {configured ? "مربوط ✓" : "غير مربوط ✗"}
             </dd>
           </div>
+          <div className="flex items-center justify-between gap-3">
+            <dt className="shrink-0 text-muted">الرابط</dt>
+            <dd className="truncate font-mono text-xs text-ink" dir="ltr">
+              {urlInfo.host ?? "—"}
+            </dd>
+          </div>
           <div className="flex items-center justify-between">
             <dt className="text-muted">بنك الكلمات</dt>
             <dd className="numeric font-semibold text-ink">
@@ -130,6 +147,18 @@ function Settings() {
             </dd>
           </div>
         </dl>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <Button size="sm" variant="secondary" loading={pinging} onClick={() => void testConnection()}>
+            اختبر الاتصال بـ Supabase
+          </Button>
+          {ping && (
+            <span className={ping.ok ? "text-xs font-semibold text-good" : "text-xs font-semibold text-bad"}>
+              {ping.detail}
+            </span>
+          )}
+        </div>
+
         {!configured && (
           <div className="mt-4">
             <Notice tone="warn" title="كيف أربط Supabase؟">

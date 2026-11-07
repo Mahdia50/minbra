@@ -10,7 +10,12 @@ import {
   type ReactNode,
 } from "react";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { getSupabaseBrowserClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import {
+  describeSupabaseUrl,
+  getSupabaseBrowserClient,
+  inspectSupabaseUrl,
+  isSupabaseConfigured,
+} from "@/lib/supabase/client";
 import { clearProfile, loadProfile, saveProfile } from "@/lib/settings";
 import { humanError } from "@/lib/constants";
 
@@ -90,12 +95,32 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         void supabase.rpc("api_cleanup");
       } catch (err) {
         if (cancelled) return;
-        const message = humanError(err);
-        setError(
-          message.includes("Anonymous") || message.includes("anonymous")
-            ? "تسجيل الدخول المجهول (Anonymous sign-in) غير مُفعّل في مشروع Supabase."
-            : message,
-        );
+        const raw =
+          typeof err === "string"
+            ? err
+            : err instanceof Error
+              ? err.message
+              : ((err as { message?: string })?.message ?? "");
+        const urlInfo = inspectSupabaseUrl();
+        const urlProblem = describeSupabaseUrl(urlInfo);
+        const networkFailure = /Failed to fetch|NetworkError|fetch failed|name_not_resolved/i.test(raw);
+
+        if (urlProblem) {
+          setError(urlProblem);
+        } else if (networkFailure) {
+          setError(
+            urlInfo.host
+              ? `تعذّر الوصول إلى ${urlInfo.host}. تأكّد أن مشروع Supabase غير موقوف (Paused) وأن الرابط صحيح، ثم أعد المحاولة.`
+              : "تعذّر الاتصال بالخادم، تحقّق من الإنترنت.",
+          );
+        } else if (/anonymous/i.test(raw)) {
+          setError("تسجيل الدخول المجهول (Anonymous sign-in) غير مُفعّل في مشروع Supabase.");
+        } else if (/could not find the function|PGRST202|schema cache/i.test(raw)) {
+          setError("قاعدة البيانات غير مهيّأة بعد: شغّل ملفات الترحيل الثلاثة من supabase/migrations بالترتيب.");
+        } else {
+          setError(humanError(err));
+        }
+        console.error("[minbra] session boot failed:", raw, err);
         setStatus("error");
       }
     }
